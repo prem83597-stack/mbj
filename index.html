@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Cricket Spin Wheel</title>
+  <style>
+    :root {
+      --bg: #030814;
+      --panel: rgba(8, 18, 38, 0.78);
+      --panel-strong: rgba(9, 24, 52, 0.94);
+      --blue: #00d9ff;
+      --blue-soft: rgba(0, 217, 255, 0.22);
+      --gold: #ffcc4d;
+      --gold-soft: rgba(255, 204, 77, 0.22);
+      --green: #31ff9b;
+      --green-soft: rgba(49, 255, 155, 0.2);
+      --red: #ff426d;
+      --purple: #8f5bff;
+      --white: #f8fbff;
+      --muted: #9fb4d2;
+      --glass: rgba(255, 255, 255, 0.08);
+      --stroke: rgba(255, 255, 255, 0.16);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+      --radius: 24px;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--white);
+      background:
+        radial-gradient(circle at 50% 102%, rgba(49, 255, 155, .22) 0 12%, transparent 28%),
+        radial-gradient(circle at 14% 14%, rgba(0, 217, 255, .3), transparent 30%),
+        radial-gradient(circle at 86% 18%, rgba(255, 204, 77, .22), transparent 26%),
+        linear-gradient(180deg, #030714 0%, #071229 52%, #030814 100%);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    body::before {
+      background:
+        linear-gradient(90deg, transparent 0 8%, rgba(0, 217, 255, .08) 9%, transparent 10% 90%, rgba(255, 204, 77, .08) 91%, transparent 92%),
+        repeating-radial-gradient(ellipse at 50% 108%, rgba(255,255,255,.11) 0 1px, transparent 1px 18px);
+      opacity: .9;
+    }
+
+    body::after {
+      background:
+        radial-gradient(ellipse at 50% 92%, rgba(4, 9, 20, .15) 0 22%, rgba(3, 8, 20, .88) 58%, rgba(3, 8, 20, .98) 100%),
+        repeating-linear-gradient(115deg, rgba(255,255,255,.04) 0 1px, transparent 1px 26px);
+      z-index: -1;
+    }
+
+    button, select, input { font: inherit; }
+    button { border: 0; cursor: pointer; color: inherit; }
+    .app { position: relative; min-height: 100vh; padding: 16px; }
+    .hidden { display: none !important; }
+
+    .stadium-lights {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .light {
+      position: absolute;
+      top: -70px;
+      width: 170px;
+      height: 320px;
+      background: linear-gradient(180deg, rgba(255,255,255,.56), rgba(0,217,255,.14) 52%, transparent);
+      filter: blur(18px);
+      opacity: .42;
+      transform-origin: top center;
+      animation: sway 7s ease-in-out infinite alternate;
+    }
+    .light:nth-child(1) { left: 5%; transform: rotate(22deg); }
+    .light:nth-child(2) { right: 4%; transform: rotate(-22deg); animation-delay: -2s; }
+    .light:nth-child(3) { left: 45%; width: 120px; opacity: .26; animation-delay: -4s; }
+
+    @keyframes sway { to { transform: rotate(var(--rot, -12deg)) translateY(14px); opacity: .58; } }
+
+    .crowd {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 17vh;
+      pointer-events: none;
+      opacity: .66;
+      background:
+        radial-gradient(circle at 8% 35%, #00d9ff 0 2px, transparent 3px),
+        radial-gradient(circle at 18% 50%, #ffcc4d 0 2px, transparent 3px),
+        radial-gradient(circle at 30% 42%, #31ff9b 0 2px, transparent 3px),
+        radial-gradient(circle at 43% 60%, #fff 0 2px, transparent 3px),
+        radial-gradient(circle at 58% 38%, #ff426d 0 2px, transparent 3px),
+        radial-gradient(circle at 72% 56%, #00d9ff 0 2px, transparent 3px),
+        radial-gradient(circle at 86% 44%, #ffcc4d 0 2px, transparent 3px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 4px, transparent 4px 14px);
+      background-size: 210px 42px, 210px 42px, 210px 42px, 210px 42px, 210px 42px, 210px 42px, 210px 42px, 100% 100%;
+      animation: crowdWave 1.1s ease-in-out infinite alternate;
+      mask-image: linear-gradient(transparent, #000 32%);
+    }
+    @keyframes crowdWave { to { transform: translateY(5px); filter: hue-rotate(22deg); } }
+
+    .screen {
+      display: none;
+      position: relative;
+      z-index: 2;
+      min-height: calc(100vh - 32px);
+      animation: screenIn .48s var(--ease) both;
+    }
+    .screen.active { display: grid; }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+
+    .hero, .selection, .toss, .game-over {
+      place-items: center;
+      text-align: center;
+      padding: 18px 0 28px;
+    }
+
+    .card {
+      width: min(100%, 1120px);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.14);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .hero-card { padding: clamp(24px, 6vw, 58px); position: relative; }
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      background: conic-gradient(from 180deg, transparent, rgba(0,217,255,.3), transparent, rgba(255,204,77,.3), transparent);
+      opacity: .45;
+      animation: rotateBg 8s linear infinite;
+      z-index: -1;
+    }
+    @keyframes rotateBg { to { transform: rotate(1turn); } }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid rgba(0,217,255,.35);
+      border-radius: 999px;
+      color: var(--blue);
+      background: rgba(0,217,255,.08);
+      box-shadow: 0 0 26px rgba(0,217,255,.12);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px auto 12px;
+      max-width: 900px;
+      font-size: clamp(38px, 9vw, 90px);
+      line-height: .92;
+      letter-spacing: -.06em;
+      text-transform: uppercase;
+      text-shadow: 0 0 38px rgba(0,217,255,.36);
+    }
+    .gradient-text {
+      background: linear-gradient(90deg, var(--blue), var(--gold), var(--green));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .lead { max-width: 720px; margin: 0 auto 24px; color: var(--muted); font-size: clamp(15px, 2.8vw, 19px); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 13px 20px;
+      border-radius: 16px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      overflow: hidden;
+      transition: transform .22s var(--ease), box-shadow .22s var(--ease), opacity .22s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(1px) scale(.99); }
+    .btn-primary {
+      color: #03101d;
+      background: linear-gradient(135deg, var(--gold), #fff27a 48%, var(--green));
+      box-shadow: 0 0 34px rgba(255,204,77,.28), 0 12px 28px rgba(0,0,0,.32);
+    }
+    .btn-neon {
+      background: rgba(0,217,255,.12);
+      border: 1px solid rgba(0,217,255,.35);
+      color: var(--blue);
+      box-shadow: 0 0 26px rgba(0,217,255,.14);
+    }
+    .btn-danger { background: rgba(255,66,109,.15); border: 1px solid rgba(255,66,109,.38); color: #ff99ad; }
+    .btn[disabled] { opacity: .55; cursor: not-allowed; transform: none; }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 26px;
+    }
+    .feature {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.065);
+      border: 1px solid rgba(255,255,255,.1);
+      text-align: left;
+    }
+    .feature b { display: block; color: var(--gold); margin-bottom: 4px; }
+    .feature span { color: var(--muted); font-size: 13px; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 auto 12px;
+      width: min(100%, 1280px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 1000; letter-spacing: -.03em; }
+    .logo {
+      width: 42px; height: 42px; border-radius: 14px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      color: #02121b;
+      box-shadow: 0 0 24px rgba(0,217,255,.38);
+    }
+
+    .selection-card, .toss-card, .over-card { padding: clamp(18px, 4vw, 34px); }
+    .section-title { margin: 0 0 8px; font-size: clamp(28px, 6vw, 54px); line-height: 1; letter-spacing: -.04em; }
+    .section-copy { margin: 0 auto 22px; color: var(--muted); max-width: 740px; }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 22px 0;
+    }
+    .team-card {
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      padding: 16px;
+      background: radial-gradient(circle at 30% 0, var(--team-glow), transparent 56%), rgba(255,255,255,.065);
+      text-align: left;
+      transition: transform .22s var(--ease), border-color .22s, box-shadow .22s;
+    }
+    .team-card.selected { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(255,204,77,.35), 0 0 32px rgba(255,204,77,.18); transform: translateY(-3px); }
+    .team-flag { font-size: 36px; filter: drop-shadow(0 0 12px var(--team-glow)); }
+    .team-card h3 { margin: 10px 0 4px; }
+    .team-card p { margin: 0; color: var(--muted); font-size: 13px; }
+    .settings-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 18px 0; }
+    .field { text-align: left; }
+    .field label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; font-weight: 900; }
+    .field select, .field input {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      outline: 0;
+      color: var(--white);
+      background: rgba(0,0,0,.28);
+    }
+
+    .coin-wrap { display: grid; place-items: center; min-height: 220px; perspective: 900px; }
+    .coin {
+      width: 150px; height: 150px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 48px; font-weight: 1000;
+      background: radial-gradient(circle at 35% 28%, #fff7a8, var(--gold) 38%, #8a5a03 100%);
+      color: #251600;
+      box-shadow: 0 0 60px rgba(255,204,77,.42), inset 0 0 18px rgba(255,255,255,.6);
+      transform-style: preserve-3d;
+    }
+    .coin.flipping { animation: flipCoin 1.5s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes flipCoin { 0% { transform: rotateX(0) rotateY(0) translateY(0); } 50% { transform: rotateX(900deg) rotateY(480deg) translateY(-60px); } 100% { transform: rotateX(1800deg) rotateY(900deg) translateY(0); } }
+
+    .match-screen { align-content: start; }
+    .match-layout {
+      width: min(100%, 1280px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .score-strip {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+      padding: 12px;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+    .team-score {
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      min-width: 0;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.055);
+    }
+    .team-score.active-bat { box-shadow: inset 0 0 0 1px rgba(49,255,155,.35), 0 0 26px rgba(49,255,155,.12); }
+    .team-name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .score-big { font-size: clamp(28px, 8vw, 56px); font-weight: 1000; letter-spacing: -.08em; line-height: .9; }
+    .score-meta { color: var(--muted); font-size: 12px; }
+    .vs-pill { align-self: center; padding: 10px 12px; border-radius: 999px; background: rgba(255,204,77,.15); color: var(--gold); font-weight: 1000; }
+
+    .main-stage {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .wheel-panel, .side-panel, .stats-panel, .history-panel {
+      border: 1px solid var(--stroke);
+      border-radius: 24px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+    .wheel-panel { padding: 16px; display: grid; place-items: center; position: relative; overflow: hidden; }
+    .wheel-panel::before {
+      content: ""; position: absolute; inset: auto 6% 4% 6%; height: 28%;
+      background: radial-gradient(ellipse, rgba(49,255,155,.18), transparent 68%);
+      filter: blur(10px);
+    }
+
+    .avatars {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 560px;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .avatar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 11px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.065);
+      border: 1px solid rgba(255,255,255,.12);
+      min-width: 0;
+    }
+    .avatar-face { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--blue), var(--gold)); color: #061221; box-shadow: 0 0 22px rgba(0,217,255,.22); }
+    .avatar strong, .avatar span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .avatar span { color: var(--muted); font-size: 12px; }
+
+    .wheel-zone { position: relative; width: min(78vw, 430px); aspect-ratio: 1; perspective: 900px; display: grid; place-items: center; }
+    .pointer {
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      width: 0; height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 36px solid var(--gold);
+      filter: drop-shadow(0 0 12px var(--gold));
+    }
+    .wheel {
+      position: relative;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      transform-style: preserve-3d;
+      transform: rotateX(10deg) rotateZ(0deg);
+      background: conic-gradient(var(--seg-colors));
+      border: 10px solid rgba(255,255,255,.08);
+      box-shadow: 0 0 0 4px rgba(0,217,255,.18), 0 0 44px rgba(0,217,255,.34), inset 0 0 50px rgba(0,0,0,.6);
+      transition: transform 4.2s cubic-bezier(.08,.78,.08,1);
+      will-change: transform;
+    }
+    .wheel.spinning { filter: saturate(1.25) drop-shadow(0 0 28px rgba(49,255,155,.25)); }
+    .wheel::before {
+      content: ""; position: absolute; inset: 13%; border-radius: 50%;
+      background: radial-gradient(circle at 36% 30%, rgba(255,255,255,.25), rgba(6,14,29,.94) 52%, #020713 100%);
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: inset 0 0 25px rgba(0,217,255,.18), 0 0 24px rgba(0,0,0,.55);
+      z-index: 2;
+    }
+    .wheel::after {
+      content: "SPIN\A CRICKET";
+      white-space: pre;
+      position: absolute;
+      inset: 32%;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      z-index: 3;
+      text-align: center;
+      font-size: clamp(15px, 4vw, 24px);
+      line-height: .98;
+      font-weight: 1000;
+      letter-spacing: -.04em;
+      color: var(--gold);
+      text-shadow: 0 0 18px rgba(255,204,77,.6);
+    }
+    .segment-label {
+      position: absolute;
+      left: 50%; top: 50%;
+      z-index: 4;
+      transform-origin: 0 0;
+      width: 43%;
+      text-align: right;
+      padding-right: 18px;
+      font-size: clamp(10px, 2.7vw, 15px);
+      font-weight: 1000;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0,0,0,.8);
+      pointer-events: none;
+    }
+
+    .spin-button {
+      margin-top: 14px;
+      width: min(100%, 310px);
+      min-height: 58px;
+      font-size: 18px;
+      text-transform: uppercase;
+    }
+
+    .side-panel { padding: 14px; display: grid; gap: 12px; }
+    .commentary-box {
+      min-height: 104px;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(0,217,255,.12), rgba(255,204,77,.08));
+      border: 1px solid rgba(0,217,255,.16);
+    }
+    .commentary-box small { display:block; color: var(--blue); font-weight: 1000; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 7px; }
+    .commentary { margin: 0; font-size: 18px; font-weight: 900; line-height: 1.25; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .metric {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .metric span { display:block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 900; }
+    .metric strong { display:block; margin-top: 5px; font-size: 22px; }
+
+    .wickets { display: flex; gap: 7px; flex-wrap: wrap; }
+    .wicket-dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(255,255,255,.24); background: rgba(255,255,255,.08); }
+    .wicket-dot.out { background: var(--red); box-shadow: 0 0 18px rgba(255,66,109,.55); }
+
+    .panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .stats-panel, .history-panel { padding: 14px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+    .panel-head h3 { margin: 0; font-size: 16px; }
+    .history-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow: auto; padding-right: 4px; }
+    .ball-chip {
+      min-width: 38px;
+      padding: 8px 9px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 1000;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.11);
+    }
+    .ball-chip.boundary { color: var(--gold); box-shadow: 0 0 18px rgba(255,204,77,.17); }
+    .ball-chip.wicket { color: #ff9bb0; background: rgba(255,66,109,.16); }
+    .ball-chip.extra { color: var(--blue); }
+
+    .leaderboard-list { display: grid; gap: 8px; max-height: 190px; overflow: auto; }
+    .leader-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.06); color: var(--muted); }
+    .leader-row b { color: var(--white); }
+
+    .toast-layer, .fireworks, .particles { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+    .float-run {
+      position: absolute;
+      left: 50%; top: 42%;
+      transform: translate(-50%, -50%);
+      font-size: clamp(54px, 16vw, 120px);
+      font-weight: 1000;
+      color: var(--gold);
+      text-shadow: 0 0 34px rgba(255,204,77,.8), 0 8px 30px rgba(0,0,0,.5);
+      animation: floatScore 1.05s var(--ease) forwards;
+    }
+    @keyframes floatScore { to { opacity: 0; transform: translate(-50%, -140%) scale(1.25); filter: blur(6px); } }
+    .spark {
+      position: absolute; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--spark-color, var(--gold));
+      box-shadow: 0 0 18px currentColor;
+      animation: spark 900ms ease-out forwards;
+    }
+    @keyframes spark { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); } }
+    .particle {
+      position: fixed; width: 4px; height: 4px; border-radius: 50%;
+      background: rgba(255,255,255,.7);
+      animation: particleFall linear forwards;
+    }
+    @keyframes particleFall { to { transform: translateY(105vh); opacity: 0; } }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      z-index: 30;
+      padding: 16px;
+      background: rgba(0,0,0,.64);
+      backdrop-filter: blur(10px);
+    }
+    .modal.active { display: grid; }
+    .modal-card { width: min(100%, 640px); padding: 26px; text-align: center; }
+    .trophy { font-size: 88px; filter: drop-shadow(0 0 34px rgba(255,204,77,.55)); animation: trophyPop 1.1s var(--ease) both; }
+    @keyframes trophyPop { 0% { transform: scale(.2) rotate(-18deg); opacity: 0; } 55% { transform: scale(1.16) rotate(8deg); } }
+
+    @media (min-width: 760px) {
+      .app { padding: 22px; }
+      .feature-grid { grid-template-columns: repeat(4, 1fr); }
+      .main-stage { grid-template-columns: minmax(430px, 1.18fr) minmax(310px, .82fr); }
+      .panels { grid-template-columns: 1fr 1fr; }
+      .history-list { max-height: 220px; }
+    }
+    @media (max-width: 440px) {
+      .score-strip { grid-template-columns: 1fr; }
+      .vs-pill { justify-self: center; }
+      .avatars { align-items: stretch; flex-direction: column; }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .team-grid { grid-template-columns: 1fr; }
+      .section-title { font-size: 34px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stadium-lights" aria-hidden="true"><span class="light"></span><span class="light"></span><span class="light"></span></div>
+  <div class="crowd" aria-hidden="true"></div>
+  <div class="particles" id="particles" aria-hidden="true"></div>
+  <div class="fireworks" id="fireworks" aria-hidden="true"></div>
+  <div class="toast-layer" id="toastLayer" aria-live="polite"></div>
+
+  <main class="app">
+    <section id="homeScreen" class="screen hero active">
+      <div class="card hero-card">
+        <span class="eyebrow">🏏 IPL x International Arcade</span>
+        <h1><span class="gradient-text">Cricket Spin</span><br />Wheel Arena</h1>
+        <p class="lead">A premium neon stadium cricket game with two innings, toss drama, realistic spin physics, animated scorecards, fireworks, commentary, and save-anywhere progress.</p>
+        <div class="actions">
+          <button class="btn btn-primary" id="newGameBtn">Start Match</button>
+          <button class="btn btn-neon" id="continueBtn">Continue Saved Game</button>
+          <button class="btn btn-danger" id="clearSaveBtn">Clear Save</button>
+        </div>
+        <div class="feature-grid">
+          <div class="feature"><b>3D Wheel</b><span>Weighted segments, easing and casino-style glow.</span></div>
+          <div class="feature"><b>Two Innings</b><span>Bat first, chase targets and lift the trophy.</span></div>
+          <div class="feature"><b>Live Score</b><span>Overs, wickets, extras, strike rate and history.</span></div>
+          <div class="feature"><b>Sound Ready</b><span>WebAudio cues and placeholders for game assets.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="teamScreen" class="screen selection">
+      <div class="card selection-card">
+        <h2 class="section-title"><span class="gradient-text">Choose Teams</span></h2>
+        <p class="section-copy">India vs Pakistan is selected by default. Pick squads, set overs, and turn target chase mode on or off.</p>
+        <div class="settings-row">
+          <div class="field"><label for="oversSelect">Match Overs</label><select id="oversSelect"><option value="2">2 Overs Blitz</option><option value="5" selected>5 Overs Classic</option><option value="10">10 Overs Pro</option></select></div>
+          <div class="field"><label for="chaseMode">Target Chase</label><select id="chaseMode"><option value="on" selected>Enabled</option><option value="off">Highest Score Wins</option></select></div>
+        </div>
+        <div class="team-grid" id="teamGrid"></div>
+        <div class="actions"><button class="btn btn-neon" data-screen="homeScreen">Back</button><button class="btn btn-primary" id="goTossBtn">Proceed to Toss</button></div>
+      </div>
+    </section>
+
+    <section id="tossScreen" class="screen toss">
+      <div class="card toss-card">
+        <h2 class="section-title">The <span class="gradient-text">Toss</span></h2>
+        <p class="section-copy" id="tossCopy">Captain, call it in the air.</p>
+        <div class="coin-wrap"><div class="coin" id="coin">🏏</div></div>
+        <div class="actions" id="tossActions"><button class="btn btn-neon" data-call="Heads">Heads</button><button class="btn btn-neon" data-call="Tails">Tails</button></div>
+        <div class="actions hidden" id="decisionActions"><button class="btn btn-primary" data-decision="bat">Bat First</button><button class="btn btn-neon" data-decision="bowl">Bowl First</button></div>
+      </div>
+    </section>
+
+    <section id="matchScreen" class="screen match-screen">
+      <div class="topbar">
+        <div class="brand"><span class="logo">🏆</span><span>Neon Cricket Arena</span></div>
+        <div class="actions"><button class="btn btn-neon" id="saveBtn">Save</button><button class="btn btn-danger" id="quitBtn">Quit</button></div>
+      </div>
+      <div class="match-layout">
+        <div class="score-strip">
+          <div class="team-score" id="teamABox"><span class="team-name" id="teamAName">India</span><strong class="score-big" id="teamAScore">0/0</strong><span class="score-meta" id="teamAMeta">0.0 ov</span></div>
+          <div class="vs-pill" id="inningsPill">1st Innings</div>
+          <div class="team-score" id="teamBBox"><span class="team-name" id="teamBName">Pakistan</span><strong class="score-big" id="teamBScore">0/0</strong><span class="score-meta" id="teamBMeta">0.0 ov</span></div>
+        </div>
+        <div class="main-stage">
+          <section class="wheel-panel">
+            <div class="avatars"><div class="avatar"><span class="avatar-face" id="batAvatar">🏏</span><div><strong id="batterName">Rohit</strong><span>Batter</span></div></div><div class="avatar"><span class="avatar-face" id="bowlAvatar">⚡</span><div><strong id="bowlerName">Shaheen</strong><span>Bowler</span></div></div></div>
+            <div class="wheel-zone"><div class="pointer"></div><div class="wheel" id="wheel"></div></div>
+            <button class="btn btn-primary spin-button" id="spinBtn">Spin Ball</button>
+          </section>
+          <aside class="side-panel">
+            <div class="commentary-box"><small>Live Commentary</small><p class="commentary" id="commentary">Welcome to the neon stadium. Spin the wheel to bowl the first ball!</p></div>
+            <div class="metric-grid">
+              <div class="metric"><span>Target</span><strong id="targetText">—</strong></div>
+              <div class="metric"><span>Required</span><strong id="requiredText">—</strong></div>
+              <div class="metric"><span>Current RR</span><strong id="runRateText">0.00</strong></div>
+              <div class="metric"><span>Balls Left</span><strong id="ballsLeftText">30</strong></div>
+            </div>
+            <div><div class="panel-head"><h3>Wickets</h3><span id="wicketText">0/10</span></div><div class="wickets" id="wickets"></div></div>
+          </aside>
+        </div>
+        <div class="panels">
+          <section class="history-panel"><div class="panel-head"><h3>Ball-by-ball History</h3><span id="overText">Over 0.0</span></div><div class="history-list" id="historyList"></div></section>
+          <section class="stats-panel"><div class="panel-head"><h3>Leaderboard / High Scores</h3><button class="btn btn-neon" id="resetLeadersBtn">Reset</button></div><div class="leaderboard-list" id="leaderboard"></div></section>
+        </div>
+      </div>
+    </section>
+
+    <section id="gameOverScreen" class="screen game-over">
+      <div class="card over-card">
+        <div class="trophy">🏆</div>
+        <h2 class="section-title" id="resultTitle">Match Result</h2>
+        <p class="section-copy" id="resultCopy">The match is complete.</p>
+        <div class="metric-grid" style="max-width:720px;margin:0 auto 22px;"><div class="metric"><span>Winner</span><strong id="winnerText">—</strong></div><div class="metric"><span>Top Score</span><strong id="topScoreText">—</strong></div><div class="metric"><span>Boundaries</span><strong id="boundariesText">—</strong></div><div class="metric"><span>Mode</span><strong id="modeText">—</strong></div></div>
+        <div class="actions"><button class="btn btn-primary" id="playAgainBtn">Play Again</button><button class="btn btn-neon" data-screen="homeScreen">Home</button></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="inningsModal"><div class="card modal-card"><h2 id="modalTitle">Innings Complete</h2><p class="section-copy" id="modalCopy">Get ready for the chase.</p><button class="btn btn-primary" id="nextInningsBtn">Start Next Innings</button></div></div>
+
+  <script>
+    /* Neon Cricket Spin Wheel: pure HTML/CSS/JS, no external libraries. */
+    const SEGMENTS = [
+      { label: '0', name: 'Dot Ball', runs: 0, legal: true, weight: 18, color: '#16345f' },
+      { label: '1', name: '1 Run', runs: 1, legal: true, weight: 20, color: '#00d9ff' },
+      { label: '2', name: '2 Runs', runs: 2, legal: true, weight: 14, color: '#31ff9b' },
+      { label: '3', name: '3 Runs', runs: 3, legal: true, weight: 8, color: '#8f5bff' },
+      { label: '4', name: '4 Runs', runs: 4, legal: true, weight: 12, color: '#ffcc4d' },
+      { label: '6', name: '6 Runs', runs: 6, legal: true, weight: 8, color: '#ff8c1a' },
+      { label: 'Wd', name: 'Wide', runs: 1, legal: false, weight: 7, color: '#18bfff' },
+      { label: 'NB', name: 'No Ball', runs: 1, legal: false, weight: 5, color: '#f25cff' },
+      { label: 'W', name: 'Wicket', runs: 0, legal: true, wicket: true, weight: 5, color: '#ff426d' },
+      { label: '★', name: 'Super Shot', runs: 'bonus', legal: true, weight: 3, color: '#fff27a' }
+    ];
+
+    const TEAMS = [
+      { id: 'india', name: 'India', flag: '🇮🇳', glow: 'rgba(0, 132, 255, .42)', players: ['Rohit', 'Virat', 'Bumrah'] },
+      { id: 'pakistan', name: 'Pakistan', flag: '🇵🇰', glow: 'rgba(34, 255, 126, .42)', players: ['Babar', 'Rizwan', 'Shaheen'] },
+      { id: 'australia', name: 'Australia', flag: '🇦🇺', glow: 'rgba(255, 204, 77, .44)', players: ['Maxwell', 'Head', 'Starc'] },
+      { id: 'england', name: 'England', flag: '🏴', glow: 'rgba(255, 66, 109, .38)', players: ['Buttler', 'Root', 'Archer'] },
+      { id: 'csk', name: 'Chennai Super Kings', flag: '🦁', glow: 'rgba(255, 214, 0, .42)', players: ['Dhoni', 'Ruturaj', 'Jadeja'] },
+      { id: 'mi', name: 'Mumbai Indians', flag: '💙', glow: 'rgba(0, 102, 255, .42)', players: ['Rohit', 'Surya', 'Bumrah'] },
+      { id: 'rcb', name: 'Royal Challengers', flag: '🔥', glow: 'rgba(255, 32, 82, .42)', players: ['Kohli', 'Faf', 'Siraj'] },
+      { id: 'kkr', name: 'Knight Riders', flag: '⚔️', glow: 'rgba(143, 91, 255, .42)', players: ['Russell', 'Narine', 'Shreyas'] }
+    ];
+
+    const els = {};
+    const state = {
+      selected: ['india', 'pakistan'], overs: 5, chase: true, screen: 'homeScreen', innings: 1,
+      batting: null, bowling: null, tossWinner: null, scores: {}, wheelRotation: 0, spinning: false,
+      matchId: Date.now(), boundaries: 0
+    };
+    const STORAGE_KEY = 'neon-cricket-spin-save';
+    const LEADER_KEY = 'neon-cricket-spin-leaders';
+
+    function $(id) { return document.getElementById(id); }
+    function init() {
+      ['homeScreen','teamScreen','tossScreen','matchScreen','gameOverScreen','teamGrid','oversSelect','chaseMode','goTossBtn','coin','tossCopy','tossActions','decisionActions','wheel','spinBtn','commentary','teamAName','teamBName','teamAScore','teamBScore','teamAMeta','teamBMeta','teamABox','teamBBox','inningsPill','targetText','requiredText','runRateText','ballsLeftText','wickets','wicketText','historyList','overText','leaderboard','batAvatar','bowlAvatar','batterName','bowlerName','saveBtn','quitBtn','inningsModal','modalTitle','modalCopy','nextInningsBtn','resultTitle','resultCopy','winnerText','topScoreText','boundariesText','modeText','playAgainBtn','continueBtn','clearSaveBtn','resetLeadersBtn','toastLayer','fireworks','particles'].forEach(id => els[id] = $(id));
+      buildWheel(); buildTeams(); bindEvents(); createAmbientParticles(); updateContinue(); renderLeaderboard();
+    }
+
+    function bindEvents() {
+      $('newGameBtn').addEventListener('click', () => showScreen('teamScreen'));
+      els.continueBtn.addEventListener('click', loadGame);
+      els.clearSaveBtn.addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); updateContinue(); announce('Saved match cleared.'); });
+      document.querySelectorAll('[data-screen]').forEach(btn => btn.addEventListener('click', () => showScreen(btn.dataset.screen)));
+      els.oversSelect.addEventListener('change', e => state.overs = Number(e.target.value));
+      els.chaseMode.addEventListener('change', e => state.chase = e.target.value === 'on');
+      els.goTossBtn.addEventListener('click', startToss);
+      els.tossActions.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => flipCoin(btn.dataset.call)));
+      els.decisionActions.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => chooseDecision(btn.dataset.decision)));
+      els.spinBtn.addEventListener('click', spinBall);
+      els.saveBtn.addEventListener('click', saveGame);
+      els.quitBtn.addEventListener('click', () => { saveGame(); showScreen('homeScreen'); });
+      els.nextInningsBtn.addEventListener('click', nextInnings);
+      els.playAgainBtn.addEventListener('click', () => showScreen('teamScreen'));
+      els.resetLeadersBtn.addEventListener('click', () => { localStorage.removeItem(LEADER_KEY); renderLeaderboard(); });
+    }
+
+    function buildWheel() {
+      const span = 360 / SEGMENTS.length;
+      const stops = SEGMENTS.map((seg, i) => `${seg.color} ${i * span}deg ${(i + 1) * span}deg`).join(', ');
+      els.wheel.style.setProperty('--seg-colors', stops);
+      SEGMENTS.forEach((seg, i) => {
+        const label = document.createElement('span');
+        label.className = 'segment-label';
+        label.textContent = seg.label;
+        label.style.transform = `rotate(${i * span + span / 2}deg) translateY(-50%)`;
+        els.wheel.appendChild(label);
+      });
+    }
+
+    function buildTeams() {
+      els.teamGrid.innerHTML = '';
+      TEAMS.forEach(team => {
+        const card = document.createElement('button');
+        card.className = 'team-card';
+        card.style.setProperty('--team-glow', team.glow);
+        card.innerHTML = `<div class="team-flag">${team.flag}</div><h3>${team.name}</h3><p>${team.players.join(' • ')}</p>`;
+        card.addEventListener('click', () => toggleTeam(team.id));
+        els.teamGrid.appendChild(card);
+      });
+      renderTeamSelection();
+    }
+
+    function toggleTeam(id) {
+      if (state.selected.includes(id)) state.selected = state.selected.filter(t => t !== id);
+      else if (state.selected.length < 2) state.selected.push(id);
+      else state.selected = [state.selected[1], id];
+      renderTeamSelection();
+    }
+
+    function renderTeamSelection() {
+      [...els.teamGrid.children].forEach((card, i) => card.classList.toggle('selected', state.selected.includes(TEAMS[i].id)));
+      els.goTossBtn.disabled = state.selected.length !== 2;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      els[id].classList.add('active');
+      state.screen = id;
+      if (id === 'matchScreen') renderMatch();
+      if (id === 'homeScreen') updateContinue();
+    }
+
+    function startToss() {
+      state.overs = Number(els.oversSelect.value);
+      state.chase = els.chaseMode.value === 'on';
+      resetMatch();
+      const [a, b] = selectedTeams();
+      els.tossCopy.textContent = `${a.name} vs ${b.name}. ${a.name} captain, call it in the air.`;
+      els.tossActions.classList.remove('hidden'); els.decisionActions.classList.add('hidden');
+      els.coin.textContent = '🏏';
+      showScreen('tossScreen');
+    }
+
+    function flipCoin(call) {
+      audio('spin');
+      els.coin.classList.remove('flipping'); void els.coin.offsetWidth; els.coin.classList.add('flipping');
+      const result = Math.random() > .5 ? 'Heads' : 'Tails';
+      const [a, b] = selectedTeams();
+      setTimeout(() => {
+        els.coin.textContent = result === 'Heads' ? 'H' : 'T';
+        state.tossWinner = call === result ? a.id : b.id;
+        const winner = getTeam(state.tossWinner);
+        els.tossCopy.textContent = `${result}! ${winner.name} won the toss. Choose your strategy.`;
+        els.tossActions.classList.add('hidden'); els.decisionActions.classList.remove('hidden');
+        audio('cheer');
+      }, 1450);
+    }
+
+    function chooseDecision(decision) {
+      const [a, b] = selectedTeams();
+      const loser = state.tossWinner === a.id ? b.id : a.id;
+      state.batting = decision === 'bat' ? state.tossWinner : loser;
+      state.bowling = state.batting === a.id ? b.id : a.id;
+      commentary(`${getTeam(state.batting).name} will bat first. Stadium lights are blazing!`);
+      showScreen('matchScreen');
+    }
+
+    function resetMatch() {
+      state.innings = 1; state.matchId = Date.now(); state.boundaries = 0; state.wheelRotation = 0; state.spinning = false;
+      const [a, b] = selectedTeams();
+      state.scores = { [a.id]: blankScore(), [b.id]: blankScore() };
+    }
+    function blankScore() { return { runs: 0, wickets: 0, balls: 0, extras: 0, history: [] }; }
+    function selectedTeams() { return state.selected.map(getTeam); }
+    function getTeam(id) { return TEAMS.find(t => t.id === id); }
+    function maxBalls() { return state.overs * 6; }
+    function overNotation(balls) { return `${Math.floor(balls / 6)}.${balls % 6}`; }
+
+    function weightedSegment() {
+      const total = SEGMENTS.reduce((sum, s) => sum + s.weight, 0);
+      let pick = Math.random() * total;
+      return SEGMENTS.find(s => (pick -= s.weight) <= 0) || SEGMENTS[0];
+    }
+
+    function spinBall() {
+      if (state.spinning) return;
+      state.spinning = true; els.spinBtn.disabled = true; audio('spin');
+      const seg = weightedSegment();
+      const idx = SEGMENTS.indexOf(seg);
+      const span = 360 / SEGMENTS.length;
+      const center = idx * span + span / 2;
+      const jitter = (Math.random() - .5) * (span * .52);
+      const rounds = 5 + Math.floor(Math.random() * 4);
+      state.wheelRotation += 360 * rounds + (360 - center) + jitter;
+      els.wheel.classList.add('spinning');
+      els.wheel.style.transform = `rotateX(10deg) rotateZ(${state.wheelRotation}deg)`;
+      setTimeout(() => resolveBall(seg), 4300);
+    }
+
+    function resolveBall(seg) {
+      const score = state.scores[state.batting];
+      let runs = seg.runs === 'bonus' ? [4, 6, 8][Math.floor(Math.random() * 3)] : seg.runs;
+      const label = seg.runs === 'bonus' ? `S${runs}` : seg.label;
+      score.runs += runs;
+      if (!seg.legal) score.extras += runs;
+      if (seg.legal) score.balls += 1;
+      if (seg.wicket && score.wickets < 10) { score.wickets += 1; audio('wicket'); }
+      else if (runs >= 4) { state.boundaries += 1; audio('hit'); fireworks(runs); }
+      else if (runs > 0) audio('hit');
+      score.history.push({ label, name: seg.name, runs, legal: seg.legal, wicket: !!seg.wicket, over: overNotation(score.balls) });
+      celebrate(label, seg.wicket);
+      commentary(commentaryFor(seg, runs));
+      renderMatch(); saveGame(true);
+      state.spinning = false; els.spinBtn.disabled = false; els.wheel.classList.remove('spinning');
+      checkInningsEnd();
+    }
+
+    function commentaryFor(seg, runs) {
+      const bat = getTeam(state.batting).name;
+      if (seg.wicket) return `Gone! Huge wicket under neon lights. ${bat} lose another batter.`;
+      if (seg.name === 'Super Shot') return `SUPER SHOT! A bonus blast worth ${runs} runs. The crowd has gone wild!`;
+      if (seg.name === 'Wide') return `Wide ball. Extra run, and the pressure stays on the bowler.`;
+      if (seg.name === 'No Ball') return `No ball! Free-hit energy surges through the stadium.`;
+      if (runs === 0) return `Dot ball! Tactical bowling and a sharp field ring.`;
+      if (runs === 4) return `Four! Threaded through the gap like an EA Sports highlight.`;
+      if (runs === 6) return `SIX! Into the top tier with gold fireworks exploding!`;
+      return `${runs} run${runs > 1 ? 's' : ''}. Smart cricket from ${bat}.`;
+    }
+
+    function checkInningsEnd() {
+      const score = state.scores[state.batting];
+      const target = inningsOneScore() + 1;
+      const allOutOrOver = score.balls >= maxBalls() || score.wickets >= 10;
+      const chased = state.innings === 2 && state.chase && score.runs >= target;
+      if (state.innings === 1 && allOutOrOver) showInningsModal();
+      else if (state.innings === 2 && (allOutOrOver || chased)) finishMatch();
+    }
+
+    function showInningsModal() {
+      const target = state.scores[state.batting].runs + 1;
+      els.modalTitle.textContent = 'Innings Complete';
+      els.modalCopy.textContent = `${getTeam(state.batting).name} posted ${state.scores[state.batting].runs}/${state.scores[state.batting].wickets}. Target: ${target}.`;
+      els.inningsModal.classList.add('active'); audio('cheer'); saveGame(true);
+    }
+
+    function nextInnings() {
+      els.inningsModal.classList.remove('active');
+      const oldBatting = state.batting;
+      state.batting = state.bowling; state.bowling = oldBatting; state.innings = 2;
+      commentary(`${getTeam(state.batting).name} begin the chase. Target ${inningsOneScore() + 1}.`);
+      renderMatch(); saveGame(true);
+    }
+
+    function inningsOneScore() {
+      const [a, b] = selectedTeams();
+      const first = state.innings === 1 ? state.batting : state.bowling;
+      return state.scores[first]?.runs ?? Math.max(state.scores[a.id].runs, state.scores[b.id].runs);
+    }
+
+    function finishMatch() {
+      const [a, b] = selectedTeams();
+      const as = state.scores[a.id], bs = state.scores[b.id];
+      let winner = null, copy = '';
+      if (as.runs === bs.runs) copy = `A dramatic tie! Both teams finish on ${as.runs}.`;
+      else winner = as.runs > bs.runs ? a : b;
+      if (winner) copy = `${winner.name} win by ${Math.abs(as.runs - bs.runs)} run${Math.abs(as.runs - bs.runs) === 1 ? '' : 's'} in a neon classic.`;
+      els.resultTitle.textContent = winner ? `${winner.name} Lift the Trophy!` : 'Super Over Energy: Match Tied!';
+      els.resultCopy.textContent = copy;
+      els.winnerText.textContent = winner ? winner.name : 'Tie';
+      els.topScoreText.textContent = `${Math.max(as.runs, bs.runs)} runs`;
+      els.boundariesText.textContent = String(state.boundaries);
+      els.modeText.textContent = state.chase ? 'Target Chase' : 'High Score';
+      showScreen('gameOverScreen'); fireworks(6); audio('victory'); saveLeader(winner ? winner.name : 'Tie', Math.max(as.runs, bs.runs));
+      localStorage.removeItem(STORAGE_KEY); updateContinue();
+    }
+
+    function renderMatch() {
+      const [a, b] = selectedTeams();
+      [a, b].forEach((team, idx) => {
+        const score = state.scores[team.id] || blankScore();
+        els[idx === 0 ? 'teamAName' : 'teamBName'].textContent = `${team.flag} ${team.name}`;
+        els[idx === 0 ? 'teamAScore' : 'teamBScore'].textContent = `${score.runs}/${score.wickets}`;
+        els[idx === 0 ? 'teamAMeta' : 'teamBMeta'].textContent = `${overNotation(score.balls)} ov • ${score.extras} extras`;
+      });
+      els.teamABox.classList.toggle('active-bat', state.batting === a.id);
+      els.teamBBox.classList.toggle('active-bat', state.batting === b.id);
+      els.inningsPill.textContent = state.innings === 1 ? '1st Innings' : '2nd Innings';
+      const batTeam = getTeam(state.batting) || a, bowlTeam = getTeam(state.bowling) || b;
+      const score = state.scores[state.batting] || blankScore();
+      els.batAvatar.textContent = batTeam.flag; els.bowlAvatar.textContent = bowlTeam.flag;
+      els.batterName.textContent = batTeam.players[Math.min(score.wickets, 2)];
+      els.bowlerName.textContent = bowlTeam.players[2] || bowlTeam.name;
+      els.targetText.textContent = state.innings === 2 && state.chase ? inningsOneScore() + 1 : '—';
+      const ballsLeft = Math.max(0, maxBalls() - score.balls);
+      const need = state.innings === 2 && state.chase ? Math.max(0, inningsOneScore() + 1 - score.runs) : 0;
+      els.requiredText.textContent = state.innings === 2 && state.chase ? `${need} off ${ballsLeft}` : '—';
+      els.runRateText.textContent = score.balls ? (score.runs / (score.balls / 6)).toFixed(2) : '0.00';
+      els.ballsLeftText.textContent = ballsLeft;
+      els.wicketText.textContent = `${score.wickets}/10`;
+      els.overText.textContent = `Over ${overNotation(score.balls)}`;
+      els.wickets.innerHTML = Array.from({ length: 10 }, (_, i) => `<span class="wicket-dot ${i < score.wickets ? 'out' : ''}"></span>`).join('');
+      els.historyList.innerHTML = score.history.length ? score.history.slice().reverse().map(ball => `<span class="ball-chip ${ball.wicket ? 'wicket' : ball.runs >= 4 ? 'boundary' : !ball.legal ? 'extra' : ''}" title="${ball.name} at ${ball.over}">${ball.label}</span>`).join('') : '<span class="score-meta">No balls yet.</span>';
+      renderLeaderboard();
+    }
+
+    function commentary(text) { els.commentary.textContent = text; }
+    function announce(text) { commentary(text); }
+
+    function celebrate(label, wicket) {
+      const el = document.createElement('div');
+      el.className = 'float-run';
+      el.textContent = wicket ? 'WICKET!' : label;
+      el.style.color = wicket ? 'var(--red)' : 'var(--gold)';
+      els.toastLayer.appendChild(el);
+      setTimeout(() => el.remove(), 1100);
+    }
+
+    function fireworks(power) {
+      const count = power >= 6 ? 70 : 42;
+      for (let i = 0; i < count; i++) {
+        const s = document.createElement('span');
+        s.className = 'spark';
+        s.style.left = `${45 + Math.random() * 18}%`; s.style.top = `${20 + Math.random() * 22}%`;
+        s.style.setProperty('--dx', `${(Math.random() - .5) * 520}px`); s.style.setProperty('--dy', `${(Math.random() - .5) * 420}px`);
+        s.style.setProperty('--spark-color', ['#ffcc4d','#00d9ff','#31ff9b','#ff426d'][Math.floor(Math.random()*4)]);
+        els.fireworks.appendChild(s); setTimeout(() => s.remove(), 950);
+      }
+    }
+
+    function createAmbientParticles() {
+      setInterval(() => {
+        if (document.hidden) return;
+        const p = document.createElement('span'); p.className = 'particle';
+        p.style.left = `${Math.random() * 100}%`; p.style.top = '-8px'; p.style.opacity = String(.2 + Math.random() * .55);
+        p.style.animationDuration = `${5 + Math.random() * 7}s`; els.particles.appendChild(p); setTimeout(() => p.remove(), 12000);
+      }, 230);
+    }
+
+    function audio(type) {
+      // Sound-ready structure: replace oscillator cues with real samples by mapping type to AudioBuffer assets.
+      try {
+        const ctx = audio.ctx || (audio.ctx = new (window.AudioContext || window.webkitAudioContext)());
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        const freq = { spin: 180, hit: 520, cheer: 760, wicket: 110, victory: 880 }[type] || 300;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime); osc.type = type === 'wicket' ? 'sawtooth' : 'triangle';
+        gain.gain.setValueAtTime(.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(.08, ctx.currentTime + .02); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + (type === 'victory' ? .55 : .16));
+        osc.connect(gain).connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + (type === 'victory' ? .58 : .18));
+      } catch (_) { /* Audio is optional and browser-policy dependent. */ }
+    }
+
+    function saveGame(silent = false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateContinue(); if (!silent) announce('Match progress saved to local storage.');
+    }
+    function loadGame() {
+      const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return;
+      Object.assign(state, JSON.parse(raw)); showScreen(state.screen === 'gameOverScreen' ? 'matchScreen' : state.screen); renderMatch(); commentary('Saved match restored. Continue the drama!');
+    }
+    function updateContinue() { els.continueBtn.disabled = !localStorage.getItem(STORAGE_KEY); }
+    function saveLeader(winner, score) {
+      const leaders = JSON.parse(localStorage.getItem(LEADER_KEY) || '[]');
+      leaders.push({ winner, score, date: new Date().toLocaleDateString(), teams: selectedTeams().map(t => t.name).join(' vs ') });
+      leaders.sort((a, b) => b.score - a.score); localStorage.setItem(LEADER_KEY, JSON.stringify(leaders.slice(0, 8))); renderLeaderboard();
+    }
+    function renderLeaderboard() {
+      const leaders = JSON.parse(localStorage.getItem(LEADER_KEY) || '[]');
+      els.leaderboard.innerHTML = leaders.length ? leaders.map((r, i) => `<div class="leader-row"><span><b>#${i + 1} ${r.winner}</b><br>${r.teams}</span><span>${r.score}<br>${r.date}</span></div>`).join('') : '<div class="leader-row"><span>No high scores yet.</span><span>Play!</span></div>';
+    }
+
+    init();
+  </script>
+</body>
+</html>
